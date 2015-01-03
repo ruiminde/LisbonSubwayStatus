@@ -9,9 +9,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.params.ClientPNames;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.params.CoreProtocolPNames;
+import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONException;
@@ -24,7 +29,9 @@ public class AllLinesStatusActivity extends Activity {
 
     public ListView listView;
 
-    private String TAG = "LisbonSubwayStatus";
+    private final String TAG = "LisbonSubwayStatus";
+    private final int CONNECTION_TIMEOUT = 5;
+
     String[] values = new String[] { "Azul", "Amarela", "Vermelha", "Verde" };
 
     @Override
@@ -65,19 +72,27 @@ public class AllLinesStatusActivity extends Activity {
     private class RetrieveMetroStatusTask extends AsyncTask<String, Void, JSONObject> {
         protected JSONObject doInBackground(String... urls) {
             AndroidHttpClient httpClient = AndroidHttpClient.newInstance("Android HTTP Client");
+            String jsonText;
             HttpParams params = httpClient.getParams();
-            params.setBooleanParameter("http.protocol.handle-redirects", true);
+            params.setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, CONNECTION_TIMEOUT * 1000);
+            params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
+            params.setIntParameter(ClientPNames.MAX_REDIRECTS, 5);
+
+            JSONObject result = null;
             try {
                 HttpResponse response = httpClient.execute(new HttpGet("http://10.0.2.2:5000/status"));
-                String jsonText = EntityUtils.toString(response.getEntity());
-                return new JSONObject(jsonText);
+                jsonText = EntityUtils.toString(response.getEntity());
+                result = new JSONObject(jsonText);
             } catch (IOException ex) {
                 Log.e(TAG, ex.getMessage(), ex);
             } catch (JSONException ex) {
                 Log.e(TAG, ex.getMessage(), ex);
+            } finally {
+                httpClient.close();
             }
-            return null;
+            return result;
         }
+
         protected void onPostExecute(JSONObject result) {
             if (result != null) {
                 Log.d(TAG, result.toString());
@@ -90,7 +105,10 @@ public class AllLinesStatusActivity extends Activity {
 
                 } catch (JSONException ex) {
                     Log.e(TAG, ex.getLocalizedMessage(), ex);
+                    Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
                 }
+            } else {
+                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
             }
         }
     }

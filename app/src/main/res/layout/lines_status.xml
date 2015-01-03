@@ -11,4 +11,5 @@
         style="@android:style/TextAppearance.DeviceDefault.Widget.TextView"
         android:drawSelectorOnTop="false"
         android:theme="@android:style/TextAppearance.DeviceDefault" />
+
 </FrameLayout>
