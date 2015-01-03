@@ -1,9 +1,16 @@
-package ruicoelho.name.lisbonsubwaystatus;
+package name.ruicoelho.lisbonsubwaystatus;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.Uri;
 import android.net.http.AndroidHttpClient;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.SyncStateContract;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,7 +37,8 @@ public class AllLinesStatusActivity extends Activity {
     public ListView listView;
 
     private final String TAG = "LisbonSubwayStatus";
-    private final int CONNECTION_TIMEOUT = 5;
+
+    private final String URL = "http://10.0.2.2:5000/status";
 
     String[] values = new String[] { "Azul", "Amarela", "Vermelha", "Verde" };
 
@@ -39,11 +47,20 @@ public class AllLinesStatusActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.lines_status);
 
-        ArrayAdapter<String> mAdapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_list_item_1, values);
+        ArrayAdapter mAdapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, values);
         this.listView = (ListView) findViewById(R.id.listView);
         this.listView.setAdapter(mAdapter);
 
-        new RetrieveMetroStatusTask().execute();
+        IntentFilter mStatusIntentFilter = new IntentFilter(UpdateMetroStatusService.BROADCAST_ACTION);
+        MetroStatusResponseReceiver mMetroStatusReceiver =
+                new MetroStatusResponseReceiver();
+        // Registers the DownloadStateReceiver and its intent filters
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMetroStatusReceiver, mStatusIntentFilter);
+
+        Intent mServiceIntent = new Intent(this, UpdateMetroStatusService.class);
+        mServiceIntent.setData(Uri.parse(URL));
+        mServiceIntent.setAction(UpdateMetroStatusService.LOAD_METRO_STATUS_ACTION);
+        this.startService(mServiceIntent);
     }
 
 
@@ -69,6 +86,35 @@ public class AllLinesStatusActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    // Broadcast receiver for receiving status updates from the IntentService
+    private class MetroStatusResponseReceiver extends BroadcastReceiver
+    {
+        // Prevents instantiation
+        private MetroStatusResponseReceiver() {
+        }
+
+        // Called when the BroadcastReceiver gets an Intent it's registered to receive
+        public void onReceive(Context context, Intent intent) {
+            String jsonText = intent.getStringExtra(UpdateMetroStatusService.LOAD_METRO_STATUS_RESULT);
+
+            if (jsonText != null) {
+                try {
+                    JSONObject json = new JSONObject(jsonText);
+                    values[0] = "Vermelha: " + json.getString("red");
+                    values[1] = "Amarela: " + json.getString("yellow");
+                    values[2] = "Azul: " + json.getString("blue");
+                    values[3] = "Verde: " + json.getString("green");
+                    ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
+                } catch (JSONException ex) {
+                    Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    /*
     private class RetrieveMetroStatusTask extends AsyncTask<String, Void, JSONObject> {
         protected JSONObject doInBackground(String... urls) {
             AndroidHttpClient httpClient = AndroidHttpClient.newInstance("Android HTTP Client");
@@ -111,5 +157,5 @@ public class AllLinesStatusActivity extends Activity {
                 Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
             }
         }
-    }
+    }*/
 }

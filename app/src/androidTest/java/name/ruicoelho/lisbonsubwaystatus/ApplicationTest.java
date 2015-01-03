@@ -1,4 +1,4 @@
-package ruicoelho.name.lisbonsubwaystatus;
+package name.ruicoelho.lisbonsubwaystatus;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
