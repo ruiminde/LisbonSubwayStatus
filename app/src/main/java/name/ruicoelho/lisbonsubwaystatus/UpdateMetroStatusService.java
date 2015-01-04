@@ -55,25 +55,8 @@ public class UpdateMetroStatusService extends IntentService {
      * parameters.
      */
     private void handleLoadMetroStatus(String url) {
-        AndroidHttpClient httpClient = AndroidHttpClient.newInstance("Android HTTP Client");
-        String jsonText = null;
-        HttpParams params = httpClient.getParams();
-        params.setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, CONNECTION_TIMEOUT * 1000);
-        params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
-        params.setIntParameter(ClientPNames.MAX_REDIRECTS, 5);
-
-        try {
-            HttpResponse response = httpClient.execute(new HttpGet(url));
-            jsonText = EntityUtils.toString(response.getEntity());
-            //this.metroStatus = new JSONObject(jsonText);
-        } catch (IOException ex) {
-            Log.e(TAG, ex.getMessage(), ex);
-        } /*catch (JSONException ex) {
-            Log.e(TAG, ex.getMessage(), ex);
-        }*/ finally {
-            httpClient.close();
-        }
-
+        MetroStatusConnector connector = new MetroStatusConnector(url);
+        String jsonText = connector.loadData();
         Intent response = new Intent(BROADCAST_ACTION);
         response.putExtra(LOAD_METRO_STATUS_RESULT, jsonText);
         LocalBroadcastManager.getInstance(this).sendBroadcast(response);

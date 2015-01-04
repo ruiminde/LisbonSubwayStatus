@@ -11,6 +11,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.SyncStateContract;
 import android.support.v4.content.LocalBroadcastManager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -57,10 +58,24 @@ public class AllLinesStatusActivity extends Activity {
         // Registers the DownloadStateReceiver and its intent filters
         LocalBroadcastManager.getInstance(this).registerReceiver(mMetroStatusReceiver, mStatusIntentFilter);
 
-        Intent mServiceIntent = new Intent(this, UpdateMetroStatusService.class);
+        final Intent mServiceIntent = new Intent(this, UpdateMetroStatusService.class);
         mServiceIntent.setData(Uri.parse(URL));
         mServiceIntent.setAction(UpdateMetroStatusService.LOAD_METRO_STATUS_ACTION);
         this.startService(mServiceIntent);
+
+        SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
+        mSwipeRefreshLayout.setOnRefreshListener(
+                new SwipeRefreshLayout.OnRefreshListener() {
+                    @Override
+                    public void onRefresh() {
+                        getApplication().startService(mServiceIntent);
+                        /*MetroStatusConnector connector = new MetroStatusConnector(URL);
+                        String jsonText = connector.loadData();*/
+
+                    }
+                }
+
+        );
     }
 
 
@@ -70,6 +85,8 @@ public class AllLinesStatusActivity extends Activity {
         getMenuInflater().inflate(R.menu.menu_all_lines_status, menu);
         return true;
     }
+
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -86,6 +103,26 @@ public class AllLinesStatusActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+
+    private void updateStatusView(String jsonText) {
+        SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
+        mSwipeRefreshLayout.setRefreshing(false);
+
+        if (jsonText != null) {
+            try {
+                JSONObject json = new JSONObject(jsonText);
+                values[0] = "Vermelha: " + json.getString("red");
+                values[1] = "Amarela: " + json.getString("yellow");
+                values[2] = "Azul: " + json.getString("blue");
+                values[3] = "Verde: " + json.getString("green");
+                ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
+            } catch (JSONException ex) {
+                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+        }
+    }
     // Broadcast receiver for receiving status updates from the IntentService
     private class MetroStatusResponseReceiver extends BroadcastReceiver
     {
@@ -96,21 +133,7 @@ public class AllLinesStatusActivity extends Activity {
         // Called when the BroadcastReceiver gets an Intent it's registered to receive
         public void onReceive(Context context, Intent intent) {
             String jsonText = intent.getStringExtra(UpdateMetroStatusService.LOAD_METRO_STATUS_RESULT);
-
-            if (jsonText != null) {
-                try {
-                    JSONObject json = new JSONObject(jsonText);
-                    values[0] = "Vermelha: " + json.getString("red");
-                    values[1] = "Amarela: " + json.getString("yellow");
-                    values[2] = "Azul: " + json.getString("blue");
-                    values[3] = "Verde: " + json.getString("green");
-                    ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
-                } catch (JSONException ex) {
-                    Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
-            }
+            updateStatusView(jsonText);
         }
     }
 
