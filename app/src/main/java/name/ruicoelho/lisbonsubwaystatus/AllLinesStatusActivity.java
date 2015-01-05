@@ -69,9 +69,6 @@ public class AllLinesStatusActivity extends Activity {
                     @Override
                     public void onRefresh() {
                         getApplication().startService(mServiceIntent);
-                        /*MetroStatusConnector connector = new MetroStatusConnector(URL);
-                        String jsonText = connector.loadData();*/
-
                     }
                 }
 
@@ -104,23 +101,20 @@ public class AllLinesStatusActivity extends Activity {
     }
 
 
-    private void updateStatusView(String jsonText) {
-        SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
-        mSwipeRefreshLayout.setRefreshing(false);
+    private void updateStatusViewError() {
+        Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+    }
 
-        if (jsonText != null) {
-            try {
-                JSONObject json = new JSONObject(jsonText);
-                values[0] = "Vermelha: " + json.getString("red");
-                values[1] = "Amarela: " + json.getString("yellow");
-                values[2] = "Azul: " + json.getString("blue");
-                values[3] = "Verde: " + json.getString("green");
-                ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
-            } catch (JSONException ex) {
-                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+    private void updateStatusView(String jsonText) {
+        try {
+            JSONObject json = new JSONObject(jsonText);
+            values[0] = "Vermelha: " + json.getString("red");
+            values[1] = "Amarela: " + json.getString("yellow");
+            values[2] = "Azul: " + json.getString("blue");
+            values[3] = "Verde: " + json.getString("green");
+            ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
+        } catch (JSONException ex) {
+            updateStatusViewError();
         }
     }
     // Broadcast receiver for receiving status updates from the IntentService
@@ -132,8 +126,16 @@ public class AllLinesStatusActivity extends Activity {
 
         // Called when the BroadcastReceiver gets an Intent it's registered to receive
         public void onReceive(Context context, Intent intent) {
+            SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
+            mSwipeRefreshLayout.setRefreshing(false);
             String jsonText = intent.getStringExtra(UpdateMetroStatusService.LOAD_METRO_STATUS_RESULT);
-            updateStatusView(jsonText);
+            if (jsonText != null) {
+                updateStatusView(jsonText);
+            } else if (intent.getBooleanExtra(UpdateMetroStatusService.STATUS_STILL_FRESH, true)) {
+                Toast.makeText(getApplicationContext(), R.string.still_fresh, Toast.LENGTH_SHORT).show();
+            } else {
+                updateStatusViewError();
+            }
         }
     }
 
