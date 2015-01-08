@@ -114,10 +114,18 @@ public class AllLinesStatusActivity extends Activity {
     private void updateStatusView(String jsonText) {
         try {
             JSONObject json = new JSONObject(jsonText);
-            values[0] = json.getString("red").toUpperCase();
-            values[1] = json.getString("yellow").toUpperCase();
-            values[2] = json.getString("blue").toUpperCase();
-            values[3] = json.getString("green").toUpperCase();
+            String reason = null;
+            reason = json.getJSONArray("red").isNull(1) ? "" : json.getJSONArray("red").getString(1);
+            values[0] = json.getJSONArray("red").getString(0).toUpperCase() + " " + reason;
+
+            reason = json.getJSONArray("yellow").isNull(1) ? "" : json.getJSONArray("yellow").getString(1);
+            values[1] = json.getJSONArray("yellow").getString(0).toUpperCase() + " " + reason;
+
+            reason = json.getJSONArray("blue").isNull(1) ? "" : json.getJSONArray("blue").getString(1);
+            values[2] = json.getJSONArray("blue").getString(0).toUpperCase() + " " + reason;
+
+            reason = json.getJSONArray("green").isNull(1) ? "" : json.getJSONArray("green").getString(1);
+            values[3] = json.getJSONArray("green").getString(0).toUpperCase() + " " + reason;
             ((TextView)listView.getChildAt(0)).setTextColor(Color.RED);
             ((TextView)listView.getChildAt(1)).setTextColor(Color.YELLOW);
             ((TextView)listView.getChildAt(2)).setTextColor(Color.BLUE);
