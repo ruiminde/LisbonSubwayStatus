@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.net.Uri;
 import android.net.http.AndroidHttpClient;
 import android.os.AsyncTask;
@@ -15,8 +17,12 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Adapter;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.apache.http.HttpResponse;
@@ -39,7 +45,7 @@ public class AllLinesStatusActivity extends Activity {
 
     private final String TAG = "LisbonSubwayStatus";
 
-    private final String URL = "http://10.0.2.2:5000/status";
+    private final String URL = "http://ruipi-tubeservice.duckdns.org:4442/status";
 
     String[] values = new String[] { "Azul", "Amarela", "Vermelha", "Verde" };
 
@@ -48,7 +54,7 @@ public class AllLinesStatusActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.lines_status);
 
-        ArrayAdapter mAdapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1, values);
+        ArrayAdapter mAdapter = new ArrayAdapter<>(getApplicationContext(), R.layout.list_item, values);
         this.listView = (ListView) findViewById(R.id.listView);
         this.listView.setAdapter(mAdapter);
 
@@ -108,10 +114,14 @@ public class AllLinesStatusActivity extends Activity {
     private void updateStatusView(String jsonText) {
         try {
             JSONObject json = new JSONObject(jsonText);
-            values[0] = "Vermelha: " + json.getString("red");
-            values[1] = "Amarela: " + json.getString("yellow");
-            values[2] = "Azul: " + json.getString("blue");
-            values[3] = "Verde: " + json.getString("green");
+            values[0] = json.getString("red").toUpperCase();
+            values[1] = json.getString("yellow").toUpperCase();
+            values[2] = json.getString("blue").toUpperCase();
+            values[3] = json.getString("green").toUpperCase();
+            ((TextView)listView.getChildAt(0)).setTextColor(Color.RED);
+            ((TextView)listView.getChildAt(1)).setTextColor(Color.YELLOW);
+            ((TextView)listView.getChildAt(2)).setTextColor(Color.BLUE);
+            ((TextView)listView.getChildAt(3)).setTextColor(Color.GREEN);
             ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
         } catch (JSONException ex) {
             updateStatusViewError();

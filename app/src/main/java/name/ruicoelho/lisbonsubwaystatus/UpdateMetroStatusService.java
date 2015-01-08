@@ -29,7 +29,7 @@ import java.util.Date;
  */
 public class UpdateMetroStatusService extends IntentService {
     private static final String PREFS_LAST_UPDATE_KEY = "LAST_UPDATE_TIMESTAMP";
-    private static final long MIN_UPDATE_INTERVAL_MILLIS = 1 * 60 * 1000L; // 1 minute
+    private static final long MIN_UPDATE_INTERVAL_MILLIS = 1 * 10 * 1000L;
     private static final String TAG = "LisbonSubwayStatus";
 
     private long lastUpdate = 0L;
@@ -77,12 +77,12 @@ public class UpdateMetroStatusService extends IntentService {
         Intent response = new Intent(BROADCAST_ACTION);
 
         long currentTimeMillis = System.currentTimeMillis();
-        if (this.lastUpdate != 0 && currentTimeMillis < this.lastUpdate + MIN_UPDATE_INTERVAL_MILLIS) {
+        /*if (this.lastUpdate != 0 && currentTimeMillis < this.lastUpdate + MIN_UPDATE_INTERVAL_MILLIS) {
             Log.d(TAG, "Last status update has not expired");
             response.putExtra(STATUS_STILL_FRESH, true);
             LocalBroadcastManager.getInstance(this).sendBroadcast(response);
             return;
-        }
+        }*/
 
         this.lastUpdate = currentTimeMillis;
         MetroStatusConnector connector = new MetroStatusConnector(url);

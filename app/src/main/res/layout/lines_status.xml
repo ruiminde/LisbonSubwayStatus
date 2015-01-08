@@ -8,7 +8,8 @@
         android:layout_height="match_parent"
         android:id="@+id/listView"
         android:layout_gravity="center_horizontal|top"
-        android:drawSelectorOnTop="true"
-        android:theme="@android:style/TextAppearance.DeviceDefault" />
+        android:drawSelectorOnTop="true" />
+
+
 
 </android.support.v4.widget.SwipeRefreshLayout>
