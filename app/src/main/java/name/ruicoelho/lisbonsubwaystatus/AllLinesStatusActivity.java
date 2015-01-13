@@ -1,12 +1,17 @@
 package name.ruicoelho.lisbonsubwaystatus;
 
+import android.app.ActionBar;
 import android.app.Activity;
+import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Rect;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.http.AndroidHttpClient;
 import android.os.AsyncTask;
@@ -17,11 +22,14 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,6 +55,8 @@ public class AllLinesStatusActivity extends Activity {
 
     private final String URL = "http://ruipi-tubeservice.duckdns.org:4442/status";
 
+    private MetroStatusResponseReceiver mMetroStatusReceiver = null;
+
     String[] values = new String[] { "Azul", "Amarela", "Vermelha", "Verde" };
 
     @Override
@@ -54,13 +64,13 @@ public class AllLinesStatusActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.lines_status);
 
-        ArrayAdapter mAdapter = new ArrayAdapter<>(getApplicationContext(), R.layout.list_item, values);
+        ArrayAdapter mAdapter = new ArrayAdapter<String>(this,
+                R.layout.list_item, R.id.status_list, values);
         this.listView = (ListView) findViewById(R.id.listView);
         this.listView.setAdapter(mAdapter);
 
         IntentFilter mStatusIntentFilter = new IntentFilter(UpdateMetroStatusService.BROADCAST_ACTION);
-        MetroStatusResponseReceiver mMetroStatusReceiver =
-                new MetroStatusResponseReceiver();
+        mMetroStatusReceiver = new MetroStatusResponseReceiver();
         // Registers the DownloadStateReceiver and its intent filters
         LocalBroadcastManager.getInstance(this).registerReceiver(mMetroStatusReceiver, mStatusIntentFilter);
 
@@ -69,12 +79,29 @@ public class AllLinesStatusActivity extends Activity {
         mServiceIntent.setAction(UpdateMetroStatusService.LOAD_METRO_STATUS_ACTION);
         this.startService(mServiceIntent);
 
-        SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
+
+        this.listView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                Intent intent = new Intent(AllLinesStatusActivity.this.getApplicationContext(), ImagesActivity.class);
+                startActivity(intent);
+                return true;
+            };
+        });
+
+        final SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
         mSwipeRefreshLayout.setOnRefreshListener(
                 new SwipeRefreshLayout.OnRefreshListener() {
                     @Override
                     public void onRefresh() {
-                        getApplication().startService(mServiceIntent);
+                        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+                        if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+                            getApplication().startService(mServiceIntent);
+                        } else {
+                            mSwipeRefreshLayout.setRefreshing(false);
+                            updateStatusViewError(R.string.error_no_network_connection);
+                        }
                     }
                 }
 
@@ -108,7 +135,11 @@ public class AllLinesStatusActivity extends Activity {
 
 
     private void updateStatusViewError() {
-        Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
+        updateStatusViewError(R.string.error_failed_to_update);
+    }
+
+    private void updateStatusViewError(int stringResourceId) {
+        Toast.makeText(getApplicationContext(),stringResourceId, Toast.LENGTH_SHORT).show();
     }
 
     private void updateStatusView(String jsonText) {
@@ -126,15 +157,43 @@ public class AllLinesStatusActivity extends Activity {
 
             reason = json.getJSONArray("green").isNull(1) ? "" : json.getJSONArray("green").getString(1);
             values[3] = json.getJSONArray("green").getString(0).toUpperCase() + " " + reason;
-            ((TextView)listView.getChildAt(0)).setTextColor(Color.RED);
-            ((TextView)listView.getChildAt(1)).setTextColor(Color.YELLOW);
+            /*((TextView)listView.getChildAt(1)).setTextColor(Color.YELLOW);
             ((TextView)listView.getChildAt(2)).setTextColor(Color.BLUE);
-            ((TextView)listView.getChildAt(3)).setTextColor(Color.GREEN);
+            listView.getChildAt(0).setBackground(getDrawable(R.drawable.blue_line));
+            ((TextView)listView.getChildAt(3)).setTextColor(Color.GREEN);*/
             ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
         } catch (JSONException ex) {
             updateStatusViewError();
         }
     }
+
+    @Override
+    public void onPause() {
+        if (this.mMetroStatusReceiver != null) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(this.mMetroStatusReceiver);
+        }
+        super.onPause();  // Always call the superclass method first
+
+    }
+
+    @Override
+    public void onResume() {
+        IntentFilter mStatusIntentFilter = new IntentFilter(UpdateMetroStatusService.BROADCAST_ACTION);
+        mMetroStatusReceiver = new MetroStatusResponseReceiver();
+        // Registers the DownloadStateReceiver and its intent filters
+        LocalBroadcastManager.getInstance(this).registerReceiver(mMetroStatusReceiver, mStatusIntentFilter);
+
+        super.onResume();
+    }
+
+    @Override
+    public void onStop() {
+        SwipeRefreshLayout mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.container);
+        mSwipeRefreshLayout.setRefreshing(false);
+
+        super.onStop();
+    }
+
     // Broadcast receiver for receiving status updates from the IntentService
     private class MetroStatusResponseReceiver extends BroadcastReceiver
     {
@@ -156,49 +215,4 @@ public class AllLinesStatusActivity extends Activity {
             }
         }
     }
-
-    /*
-    private class RetrieveMetroStatusTask extends AsyncTask<String, Void, JSONObject> {
-        protected JSONObject doInBackground(String... urls) {
-            AndroidHttpClient httpClient = AndroidHttpClient.newInstance("Android HTTP Client");
-            String jsonText;
-            HttpParams params = httpClient.getParams();
-            params.setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, CONNECTION_TIMEOUT * 1000);
-            params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, true);
-            params.setIntParameter(ClientPNames.MAX_REDIRECTS, 5);
-
-            JSONObject result = null;
-            try {
-                HttpResponse response = httpClient.execute(new HttpGet("http://10.0.2.2:5000/status"));
-                jsonText = EntityUtils.toString(response.getEntity());
-                result = new JSONObject(jsonText);
-            } catch (IOException ex) {
-                Log.e(TAG, ex.getMessage(), ex);
-            } catch (JSONException ex) {
-                Log.e(TAG, ex.getMessage(), ex);
-            } finally {
-                httpClient.close();
-            }
-            return result;
-        }
-
-        protected void onPostExecute(JSONObject result) {
-            if (result != null) {
-                Log.d(TAG, result.toString());
-                try {
-                    values[0] = "Vermelha: " + result.getString("red");
-                    values[1] = "Amarela: " + result.getString("yellow");
-                    values[2] = "Azul: " + result.getString("blue");
-                    values[3] = "Verde: " + result.getString("green");
-                    ((ArrayAdapter) listView.getAdapter()).notifyDataSetChanged();
-
-                } catch (JSONException ex) {
-                    Log.e(TAG, ex.getLocalizedMessage(), ex);
-                    Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                Toast.makeText(getApplicationContext(), R.string.error_failed_to_update, Toast.LENGTH_SHORT).show();
-            }
-        }
-    }*/
 }
